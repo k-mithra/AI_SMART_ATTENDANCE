@@ -1,7 +1,10 @@
 import os
+from typing import TYPE_CHECKING
 
 import streamlit as st
-from supabase import Client, create_client
+
+if TYPE_CHECKING:
+    from supabase import Client
 
 
 def _get_secret(key: str) -> str:
@@ -19,7 +22,15 @@ def _get_secret(key: str) -> str:
 
 
 @st.cache_resource
-def get_supabase_client() -> Client:
+def get_supabase_client() -> "Client":
+    try:
+        from supabase import create_client
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(
+            "Package 'supabase' is not installed. Add supabase==2.30.0 to "
+            "requirements.txt, push to GitHub, and redeploy."
+        ) from exc
+
     return create_client(
         _get_secret("SUPABASE_URL"),
         _get_secret("SUPABASE_KEY"),
