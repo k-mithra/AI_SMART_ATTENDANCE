@@ -1,11 +1,41 @@
+import hashlib
+import secrets
+
 from src.database.config import supabase
-import bcrypt
 
-def hash_pass(pwd):
-    return bcrypt.hashpw(pwd.encode(), bcrypt.gensalt()).decode()
+_PWD_ITERATIONS = 260_000
+_PWD_PREFIX = "pbkdf2_sha256"
 
-def check_pass(pwd, hashed):
-    return bcrypt.checkpw(pwd.encode(), hashed.encode())
+
+def hash_pass(pwd: str) -> str:
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256", pwd.encode(), salt, _PWD_ITERATIONS
+    )
+    return f"{_PWD_PREFIX}${_PWD_ITERATIONS}${salt.hex()}${digest.hex()}"
+
+
+def check_pass(pwd: str, hashed: str) -> bool:
+    # Legacy bcrypt hashes from earlier local dev
+    if hashed.startswith("$2"):
+        try:
+            import bcrypt
+
+            return bcrypt.checkpw(pwd.encode(), hashed.encode())
+        except ModuleNotFoundError:
+            return False
+
+    try:
+        prefix, iters, salt_hex, digest_hex = hashed.split("$", 3)
+        if prefix != _PWD_PREFIX:
+            return False
+        salt = bytes.fromhex(salt_hex)
+        digest = hashlib.pbkdf2_hmac(
+            "sha256", pwd.encode(), salt, int(iters)
+        )
+        return secrets.compare_digest(digest.hex(), digest_hex)
+    except (ValueError, TypeError):
+        return False
 
 
 def check_teacher_exists(username):

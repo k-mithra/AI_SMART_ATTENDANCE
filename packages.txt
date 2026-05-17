@@ -3,3 +3,4 @@ build-essential
 libopenblas-dev
 liblapack-dev
 libboost-dev
+libsndfile1
